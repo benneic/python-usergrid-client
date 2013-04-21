@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from .entity import Entity
+from .errors import UsergridResponseError
 
 import os
-
-
-class InvalidResponseError(Exception):
-    pass
+from datetime import datetime
 
 
 class Response(object):
@@ -14,58 +11,65 @@ class Response(object):
     def __init__(self, resource, response):
         self.resource = resource
         self.response = response
-
-    _entities_data = None
-    _entities = None
+        self.data = response.json()
 
     @property
-    def data(self):
-        return self.response.json()
-
-    def has_multiple_entities(self):
-        entities_data = self.data.get('entities') or self.data.get('data') or self.data.get('messages')
-        return isinstance(entities_data, list)
+    def duration(self):
+        return self.data['duration']
 
     @property
-    def entities_data(self):
-        if self._entities_data:
-            return self._entities_data
-        entities_data = self.data.get('entities') or self.data.get('data') or self.data.get('messages') or self.data.get('list')
-        if not isinstance(entities_data, list):
-            raise InvalidResponseError('Unable to retrieve entities from response: %s', self.data)
-        for entity in entities_data:
-            if isinstance(entity, dict) and entity.get('uuid'):
-                entity['uri'] = os.path.join(self.data['uri'], entity['uuid'])
-        self._entities_data = entities_data
-        return entities_data
+    def timestamp(self):
+        return datetime.utcfromtimestamp(self.data['timestamp'])
 
     @property
+    def error(self):
+        return self.data.get('error')
+
+    @property
+    def error_description(self):
+        return self.data.get('error_description')
+
+    @property
+    def exception(self):
+        return self.data.get('exception')
+
+    @property
+    def action(self):
+        return self.data.get('action')
+
+    @property
+    def application_name(self):
+        return self.data.get('applicationName')
+
+    @property
+    def application_uuid(self):
+        return self.data.get('application')
+
     def entities(self):
-        if not self._entities:
-            self._entities = list()
-            index = -1
-            for d in self.entities_data:
-                index += 1
-                e = d if isinstance(d, list) else Entity(d['uri'], self.resource.headers, self, index)
-                self._entities.append(e)
-        return self._entities
+        for entity in self.data.get('entities', []):
+            if isinstance(entity, dict) and entity.get('uuid'):
+                entity['uri'] = os.path.join(self.uri, entity['uuid'])
+            yield entity
 
     @property
-    def entity_data(self):
-        if self.has_multiple_entities():
-            for entity in self.entities_data:
-                return entity
-        entity = self.data.get('data') or self.data.get('organization')
-        if entity:
-            entity = self.data.get('data')
-            entity['uri'] = self.resource.path
-            return entity
-        for e in self.entities_data.values():
-            return e
+    def organization(self):
+        return self.data.get('organization')
 
     @property
-    def entity(self):
-        entity_data = self.entity_data
-        return Entity(entity_data['uri'], self.resource.headers, self) if entity_data else None
+    def params(self):
+        return self.data.get('params')
+
+    @property
+    def path(self):
+        return self.data.get('path')
+
+    @property
+    def uri(self):
+        return self.data.get('uri')
+
+    def raise_if_error(self):
+        if not self.error:
+            return
+        raise UsergridResponseError(self)
 
 
