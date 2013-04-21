@@ -13,6 +13,12 @@ class Response(object):
         self.response = response
         self.data = response.json()
 
+    def __repr__(self):
+        return '{}<{}>'.format(__name__, self.resource.path)
+
+    def __str__(self):
+        return unicode({self.resource.path: self.data})
+
     @property
     def duration(self):
         return self.data['duration']
@@ -45,6 +51,7 @@ class Response(object):
     def application_uuid(self):
         return self.data.get('application')
 
+    @property
     def entities(self):
         for entity in self.data.get('entities', []):
             if isinstance(entity, dict) and entity.get('uuid'):

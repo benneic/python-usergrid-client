@@ -8,7 +8,7 @@ import os
 class Application(object):
     def __init__(self, organisation, application):
         path = '{}/{}'.format(organisation, application)
-        path = os.path.join(Resource.DEFAULT_API_URL, path)
+        path = os.path.join(Resource.API_URL, path)
         self.app = Resource(path)
         self.users = self.app.users
         self.groups = self.app.groups
@@ -20,8 +20,8 @@ class Application(object):
         self.roles = self.app.roles
 
     def __getattr__(self, item):
-        resource = self.app[item]
+        resource = self.app.__getattr__(item)
         self.__setattr__(item, resource)
-        return self.app[item]
+        return resource
 
 
